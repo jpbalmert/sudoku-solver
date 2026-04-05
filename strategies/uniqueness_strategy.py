@@ -28,8 +28,8 @@ class UniquenessStrategy(SolveStrategy):
         if result:
             return result
 
-        # Look for a candidate to eliminate
-        return self._eliminate_one(game)
+        # Look for a solved cell whose value can be eliminated from peers
+        return self._eliminate_from_source(game)
 
     def _initialize_candidates(self, game: Game) -> StepResult:
         """Populate candidates for all empty cells."""
@@ -82,33 +82,49 @@ class UniquenessStrategy(SolveStrategy):
             is_initialization=True,
         )
 
-    def _eliminate_one(self, game: Game) -> StepResult | None:
-        """Find one candidate that conflicts with a solved value in its house."""
+    def _eliminate_from_source(self, game: Game) -> StepResult | None:
+        """Find a solved cell and eliminate its value from all peers at once.
+
+        Scans every solved cell. For the first one whose value still appears
+        as a candidate in any peer cell (same row, column, or box), removes
+        that value from ALL such peers in a single step.
+        """
         for row in game.grid:
-            for cell in row:
-                if not cell.is_empty or not cell.candidates:
+            for source in row:
+                if source.value is None:
                     continue
-                for house in game.houses_for_cell(cell):
-                    conflicts = cell.candidates & house.solved_values
-                    if conflicts:
-                        value = min(conflicts)
-                        # Find the solved cell that causes the conflict
-                        source = next(
-                            c for c in house.cells
-                            if c.value == value and c is not cell
-                        )
-                        cell.candidates.discard(value)
-                        return StepResult(
-                            description=(
-                                f"Removed candidate {value} from "
-                                f"R{cell.row + 1}C{cell.col + 1} because "
-                                f"{value} is already placed in {house.name}."
-                            ),
-                            changed_cells=[cell],
-                            contributing_cells=[source],
-                            eliminated_candidates={
-                                (cell.row, cell.col): {value}
-                            },
-                        )
+                value = source.value
+
+                # Collect all peer cells that still have this value as a candidate
+                affected: list[Cell] = []
+                for house in game.houses_for_cell(source):
+                    for cell in house.cells:
+                        if cell is not source and cell.is_empty and value in cell.candidates:
+                            if cell not in affected:
+                                affected.append(cell)
+
+                if not affected:
+                    continue
+
+                # Remove the candidate from all affected cells
+                eliminated: dict[tuple[int, int], set[int]] = {}
+                for cell in affected:
+                    cell.candidates.discard(value)
+                    eliminated[(cell.row, cell.col)] = {value}
+
+                # Build description
+                cell_refs = ", ".join(
+                    f"R{c.row + 1}C{c.col + 1}" for c in affected
+                )
+                return StepResult(
+                    description=(
+                        f"Removed candidate {value} from {cell_refs} "
+                        f"because {value} is already placed at "
+                        f"R{source.row + 1}C{source.col + 1}."
+                    ),
+                    changed_cells=affected,
+                    contributing_cells=[source],
+                    eliminated_candidates=eliminated,
+                )
         return None
 
