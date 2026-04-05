@@ -11,8 +11,7 @@ class UniquenessStrategy(SolveStrategy):
     1. On a fresh puzzle (no candidates): populates all candidates for every
        empty cell based on what values are already present in its houses.
     2. On a puzzle with candidates: finds one candidate that can be eliminated
-       because its value is already solved in one of that cell's houses, OR
-       solves a cell that has exactly one remaining candidate.
+       because its value is already solved in one of that cell's houses.
     """
 
     @property
@@ -30,12 +29,7 @@ class UniquenessStrategy(SolveStrategy):
             return result
 
         # Look for a candidate to eliminate
-        result = self._eliminate_one(game)
-        if result:
-            return result
-
-        # Look for a naked single to solve
-        return self._solve_naked_single(game)
+        return self._eliminate_one(game)
 
     def _initialize_candidates(self, game: Game) -> StepResult:
         """Populate candidates for all empty cells."""
@@ -118,21 +112,3 @@ class UniquenessStrategy(SolveStrategy):
                         )
         return None
 
-    def _solve_naked_single(self, game: Game) -> StepResult | None:
-        """Solve a cell that has exactly one remaining candidate."""
-        for row in game.grid:
-            for cell in row:
-                if cell.is_empty and len(cell.candidates) == 1:
-                    value = next(iter(cell.candidates))
-                    cell.candidates.clear()
-                    cell.solved = value
-                    return StepResult(
-                        description=(
-                            f"Solved R{cell.row + 1}C{cell.col + 1} = {value}. "
-                            f"It was the only remaining candidate in this cell."
-                        ),
-                        changed_cells=[cell],
-                        solved_cell=(cell.row, cell.col),
-                        solved_value=value,
-                    )
-        return None

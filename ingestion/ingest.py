@@ -299,8 +299,13 @@ def _sub_region_has_content(sub_img: np.ndarray) -> bool:
     """Detect whether a candidate sub-region contains a small digit.
 
     Uses adaptive thresholding to handle black, blue, and grey text.
+    Red pixels are masked out first so that struck-through (eliminated)
+    candidates from a previous step's output are not re-read.
     """
-    gray = cv2.cvtColor(sub_img, cv2.COLOR_BGR2GRAY)
+    # Mask out red pixels before content detection
+    filtered = _mask_red_pixels(sub_img)
+
+    gray = cv2.cvtColor(filtered, cv2.COLOR_BGR2GRAY)
     binary = cv2.adaptiveThreshold(
         gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
         cv2.THRESH_BINARY_INV, 21, 10,
@@ -312,3 +317,20 @@ def _sub_region_has_content(sub_img: np.ndarray) -> bool:
     total = sub_img.shape[0] * sub_img.shape[1]
 
     return pixel_count > total * 0.04
+
+
+def _mask_red_pixels(img: np.ndarray) -> np.ndarray:
+    """Replace red pixels with white so they are ignored during detection."""
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    # Red wraps around in HSV, so we need two ranges
+    lower_red1 = np.array([0, 50, 50])
+    upper_red1 = np.array([10, 255, 255])
+    lower_red2 = np.array([170, 50, 50])
+    upper_red2 = np.array([180, 255, 255])
+
+    mask = cv2.inRange(hsv, lower_red1, upper_red1) | cv2.inRange(hsv, lower_red2, upper_red2)
+
+    result = img.copy()
+    result[mask > 0] = (255, 255, 255)
+    return result

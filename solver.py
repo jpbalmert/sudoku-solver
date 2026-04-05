@@ -13,7 +13,7 @@ from pathlib import Path
 
 from ingestion import ingest_image
 from models import Game
-from strategies import UniquenessStrategy, StepResult
+from strategies import UniquenessStrategy, NakedSingleStrategy, HiddenSingleStrategy, StepResult
 from validation import validate
 from output import render_image, render_text
 
@@ -22,6 +22,8 @@ from output import render_image, render_text
 # a change. Add new strategies here as they are implemented.
 STRATEGIES = [
     UniquenessStrategy(),
+    NakedSingleStrategy(),
+    HiddenSingleStrategy(),
 ]
 
 
