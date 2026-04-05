@@ -23,6 +23,12 @@ class UniquenessStrategy(SolveStrategy):
         if not game.has_candidates():
             return self._initialize_candidates(game)
 
+        # Populate candidates for any empty cells that are missing them
+        # (e.g. cells the OCR couldn't read candidates for)
+        result = self._populate_missing_candidates(game)
+        if result:
+            return result
+
         # Look for a candidate to eliminate
         result = self._eliminate_one(game)
         if result:
@@ -49,6 +55,33 @@ class UniquenessStrategy(SolveStrategy):
         return StepResult(
             description=(
                 "Populated candidate values for all empty cells by removing "
+                "digits already present in each cell's row, column, and box."
+            ),
+            changed_cells=changed,
+            is_initialization=True,
+        )
+
+    def _populate_missing_candidates(self, game: Game) -> StepResult | None:
+        """Populate candidates for empty cells that have none yet."""
+        all_digits = set(range(1, 10))
+        changed: list[Cell] = []
+
+        for row in game.grid:
+            for cell in row:
+                if cell.is_empty and not cell.candidates:
+                    houses = game.houses_for_cell(cell)
+                    used = set()
+                    for house in houses:
+                        used |= house.solved_values
+                    cell.candidates = all_digits - used
+                    changed.append(cell)
+
+        if not changed:
+            return None
+
+        return StepResult(
+            description=(
+                "Populated candidate values for empty cells by removing "
                 "digits already present in each cell's row, column, and box."
             ),
             changed_cells=changed,

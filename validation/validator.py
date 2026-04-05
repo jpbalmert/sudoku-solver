@@ -37,16 +37,4 @@ def validate(game: Game) -> list[ValidationError]:
             else:
                 seen[v] = cell
 
-    # Check for cells with no candidates and no value
-    for row in game.grid:
-        for cell in row:
-            if cell.is_empty and game.has_candidates() and not cell.candidates:
-                errors.append(ValidationError(
-                    description=(
-                        f"R{cell.row + 1}C{cell.col + 1} has no remaining "
-                        f"candidates and is unsolved."
-                    ),
-                    conflicting_cells=[cell],
-                ))
-
     return errors
